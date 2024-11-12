@@ -1,0 +1,40 @@
+{
+	"name": "mywebviewext",
+	"displayName": "mywebviewext",
+	"description": "get started on a webview extension template",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.90.0"
+	},
+	"publisher": "com.axiommd",
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onWebviewPanel:catCoding"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "catCoding.start",
+				"title": "Start cat coding session",
+				"category": "Cat Coding"
+			},
+			{
+				"command": "catCoding.doRefactor",
+				"title": "Do some refactoring",
+				"category": "Cat Coding"
+			}
+		]
+	},
+	"devDependencies": {
+		"@scala-js/vite-plugin-scalajs": "^1.0.0",
+		"@types/vscode-webview": "^1.57.0",
+		"typescript": "^5.6.3"
+	},
+	"dependencies": {
+		"@types/vscode": "^1.94.0"
+	}
+
+}
