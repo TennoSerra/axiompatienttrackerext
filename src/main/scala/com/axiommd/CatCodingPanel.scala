@@ -68,9 +68,11 @@ class CatCodingPanel (private var _panel: vscode.WebviewPanel,private val _exten
     val scriptUri = webview.asWebviewUri(scriptPathOnDisk)
     val styleResetPath = vscode.Uri.joinPath(_extensionUri, "media", "reset.css")
     val stylesPathMainPath = vscode.Uri.joinPath(_extensionUri, "media", "vscode.css")
+    val stylesPatientTrackerPath = vscode.Uri.joinPath(_extensionUri, "modules/viteview/src", "style.css")
 
     val stylesResetUri = webview.asWebviewUri(styleResetPath)
     val stylesMainUri = webview.asWebviewUri(stylesPathMainPath)
+    val stylesPatientTrackerUri = webview.asWebviewUri(stylesPatientTrackerPath)
     val nonce = Nonce()
 
     s"""
@@ -89,15 +91,16 @@ class CatCodingPanel (private var _panel: vscode.WebviewPanel,private val _exten
 
 				<link href="${stylesResetUri}" rel="stylesheet">
 				<link href="${stylesMainUri}" rel="stylesheet">
+        <link href="${stylesPatientTrackerUri}" rel="stylesheet">
 
-				<title>Cat Coding</title>
+				<title>Axiom Tracker</title>
 			</head>
 			<body>
-      Hello CATWORLD!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      <!--
 				<img src="${catGifPath}" width="300" />
 				<h1 id="lines-of-code-counter">0</h1>
+      -->
         <div id="app"></div>
-
 				<script nonce="${nonce}" src="${scriptUri}"></script>
 			</html>
 

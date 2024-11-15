@@ -4,17 +4,15 @@
 	"description": "get started on a webview extension template",
 	"version": "0.0.1",
 	"publisher": "com.axiommd",
-	"type": "module" ,
+	"type": "module",
 	"scripts": {
 		"dev": "vite",
 		"build": "tsc && vite build",
 		"preview": "vite preview"
-	  },
-	
-
+	},
 	"devDependencies": {
 		"@scala-js/vite-plugin-scalajs": "^1.0.0",
+		"typescript": "^4.9.5",
 		"vite": "^4.1.0"
 	}
-
 }

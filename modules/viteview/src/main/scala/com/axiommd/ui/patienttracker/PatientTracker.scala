@@ -2,9 +2,9 @@ package com.axiommd.ui.patienttracker
 
 import com.axiom.model.shared.dto.Patient
 import scala.collection.mutable
-import com.axiommd.shapeless.{ShapelessFieldNameExtractor,Tuples}
+import com.axiommd.shapeless.{ShapelessFieldNameExtractor, Tuples}
 import java.time.*
-import com.axiommd.ui.tableutils.{CCRowList,ColRow,GridDataT,GridT}
+import com.axiommd.ui.tableutils.{CCRowList, ColRow, GridDataT, GridT}
 import com.axiommd.ui.patienttracker.TypeClass.*
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
@@ -17,47 +17,40 @@ import scala.scalajs.js
 
 type PatientList = CCRowList[Patient]
 
+trait RenderHtml:
+  def renderHtml: Element
 
-trait RenderHtml :
-  def renderHtml:Element
-  
+case class CellData(text: String, color: String)
 
+case class PatientGridData(grid: GridT[Patient, CellData], colrow: ColRow, data: CellData)
+  extends GridDataT[GridT[Patient, CellData], Patient, CellData](grid, colrow, data) with RenderHtml:
+    def renderHtml = td(data.text, backgroundColor := data.color)
 
-case class CellData(text:String,color:String) 
+class PatientTracker() extends GridT[Patient, CellData] with RenderHtml:
 
+  given owner: Owner = new OneTimeOwner(() => ())
+  val selectedCellVar: Var[Option[ColRow]] = Var(None)
+  val selectedRowVar: Var[Option[Int]] = Var(None)
+  val searchQueryVar: Var[String] = Var("")
 
-case class PatientGridData(grid: GridT[Patient,CellData],colrow:ColRow, data:CellData) 
-  extends GridDataT[GridT[Patient,CellData],Patient,CellData](grid,colrow,data) with RenderHtml :
-    def renderHtml = td(data.text,backgroundColor:=data.color)
-
-
-class PatientTracker() extends GridT [Patient,CellData] with RenderHtml:
-
-
-  given owner:Owner = new OneTimeOwner(()=>())
-  val selectedCellVar:Var[Option[ColRow]] = Var(None)
-  val selectedRowVar:Var[Option[Int]] = Var(None)
-
-  selectedCellVar.signal.foreach{ setSelectedRow }
+  selectedCellVar.signal.foreach { setSelectedRow }
   selectedRowVar.signal.foreach { scrollToSelectedRow }
 
-  
-  val colHeadersVar:Var[List[String]] = Var(ShapelessFieldNameExtractor.fieldNames[Patient].take(15))
+  val colHeadersVar: Var[List[String]] = Var(ShapelessFieldNameExtractor.fieldNames[Patient].take(15))
 
-  def columns(row:Int,p:Patient) =  
+  def columns(row: Int, p: Patient) =
     val c = mutable.IndexedSeq(CellDataConvertor.derived[Patient].celldata(p)*).take(15)
     c(0) = c(0).copy(text = s"**${c(0).text}*", color = "pink")
     c.toList
 
-  private def setSelectedRow(cr:Option[ColRow])  = 
+  private def setSelectedRow(cr: Option[ColRow]) =
     cr match
-      case Some(sel) => 
-          selectedRowVar.set(Some(sel.row))
-      case _ => 
-          selectedRowVar.set(None)
+      case Some(sel) =>
+        selectedRowVar.set(Some(sel.row))
+      case _ =>
+        selectedRowVar.set(None)
 
-
-  private def scrollToSelectedRow(rowIdxOpt: Option[Int]): Unit = 
+  private def scrollToSelectedRow(rowIdxOpt: Option[Int]): Unit =
     rowIdxOpt match {
       case Some(rowIdx) =>
         Option(dom.document.getElementById(s"row-$rowIdx")).foreach { element =>
@@ -76,91 +69,91 @@ class PatientTracker() extends GridT [Patient,CellData] with RenderHtml:
       case None => // Do nothing
     }
 
-  override def cctoData(row:Int,cc:Patient):List[CellData] = columns(row,cc)
+  override def cctoData(row: Int, cc: Patient): List[CellData] = columns(row, cc)
 
+  def searchFilterFunction(rowData: scala.collection.mutable.IndexedSeq[(GridT[Patient, CellData], ColRow, CellData)]): Boolean = {
+    val query = searchQueryVar.now().toLowerCase
+    // Concatenate all `text` values in `CellData` across the row
+    val rowContent = rowData.map(_._3.text).mkString(" ").toLowerCase
+    rowContent.contains(query)
+  }
 
-  def renderHtml: L.Element = 
-    def headerRow(s:List[String]) = 
-      List(tr(
-          s.map (s => th(s))
+  def renderHtml: L.Element =
+    def headerRow(headers: List[String]) =
+      List(tr(headers.map { header =>
+        th(
+          cls := "sticky-header",
+          header
+        )
+      }))
+
+    div(
+      cls := "table-container",
+      div(
+        cls := "sticky-bar",
+        label("Search: "),
+        input(
+          typ := "text",
+          placeholder := "Search patients...",
+          inContext { thisNode =>
+            onInput.mapTo(thisNode.ref.value) --> searchQueryVar
+          }
+        )
+      ),
+      table(
+        cls := "sticky-table",
+        onKeyDown --> tableKeyboardHandler,
+        thead(
+          children <-- colHeadersVar.signal.map(headerRow)
+        ),
+        tbody(
+          children <-- gcdVar.signal.combineWith(searchQueryVar.signal).map { case (rowList, query) =>
+            // Apply filtering based on the search query
+            rowList.filter { rowData => searchFilterFunction(rowData) }
+          }.map { filteredRows =>
+            filteredRows.map(rowData => row(rowData))
+          }
         )
       )
+    )
 
-    table(
-      onKeyDown --> tableKeyboardHandler,//prevents default scrolling behaviour from various key strokes
-      thead(
-        children <-- colHeadersVar.signal.map{headerRow(_) }
-      ),
-      tbody(
-        children <-- gcdVar.signal.map{ 
-          (rowList:GCD) => rowList.map(tup => row(tup))
-        }
-      )
-  )
-  
-  def row(cols:Row)  = 
-    
-    val pgd = cols.map{Tuples.from[PatientGridData](_)}
-    // val patientGridData = data(cols).map{gcdTupleToPatientGridData} 
+  def row(cols: Row) =
+    val pgd = cols.map { Tuples.from[PatientGridData](_) }
     tr(
       idAttr := s"row-${cols.head._2.row}",
-      backgroundColor <-- selectedRowVar.signal.map{ selRow => 
+      backgroundColor <-- selectedRowVar.signal.map { selRow =>
         selRow match
           case Some(row) if row == cols.head._2.row => "blue"
           case _ => "black"
       },
-      pgd.map{c => this.tableCell(c.colrow)}
+      pgd.map { c => this.tableCell(c.colrow) }
     )
 
-  def tableCell(colRow:ColRow) : HtmlElement  =
-
-    val patientGridData = data(colRow).map{Tuples.from[PatientGridData](_)} 
-
+  def tableCell(colRow: ColRow): HtmlElement =
+    val patientGridData = data(colRow).map { Tuples.from[PatientGridData](_) }
     td(
-      tabIndex := colRow.row*9000 + colRow.col, //apparently I need this to capture keyboard events
-      color := patientGridData.map(_.data.color).getOrElse("black"), //TODO convert tuple to case class to improve readability
+      tabIndex := colRow.row * 9000 + colRow.col,
+      color := patientGridData.map(_.data.color).getOrElse("black"),
       onKeyDown --> keyboardHandler,
       onMouseUp.mapTo(colRow).map(Some(_)) --> selectedCellVar.writer,
-      patientGridData.map{ _.data.text }.getOrElse("---")
+      patientGridData.map(_.data.text).getOrElse("---")
     )
 
-  /**
-    * event handler at the table later to prevent default behaviour from key actions
-    * that can cause the web page to scroll
-    *
-    * @param e
-    */
-  def tableKeyboardHandler(e:KeyboardEvent)  =
-    e.keyCode match 
-      case 40 => e.preventDefault()
-      case 38 => e.preventDefault()
-      case 37 => e.preventDefault()
-      case 39 => e.preventDefault()
-      case 32 => e.preventDefault()
-      case _  => ()  
-
-    
-
-  def keyboardHandler(e:KeyboardEvent)  =
-    val selectedCellOpt = selectedCellVar.now()
-    def conditionalUpdate(vector:ColRow):Unit =
-      selectedCellOpt.foreach {currentColRow =>
-        val newColRow = currentColRow.add(vector)
-        inBounds(newColRow) match
-          case true => selectedCellVar.set(Some(newColRow))
-          case _ => ()
-      }
+  def tableKeyboardHandler(e: KeyboardEvent): Unit =
     e.keyCode match
-      case 40 =>  //down cursor
-        conditionalUpdate(ColRow(0,1))
-      case 38 => //up cursor
-        conditionalUpdate(ColRow(0,-1))
-      case 37 => //left cursor
-        conditionalUpdate(ColRow(-1,0))
-      case 39 => //right cursor
-        conditionalUpdate(ColRow(-1,0))
-      case 9 => //tab
-        // dom.window.console.log(s"tabbed ${gd.coordinate}tab tab tab ")
+      case 40 | 38 | 37 | 39 | 32 => e.preventDefault() // Prevent default scrolling behavior
       case _ => ()
 
-
+  def keyboardHandler(e: KeyboardEvent): Unit =
+    val selectedCellOpt = selectedCellVar.now()
+    def conditionalUpdate(vector: ColRow): Unit =
+      selectedCellOpt.foreach { currentColRow =>
+        val newColRow = currentColRow.add(vector)
+        if inBounds(newColRow) then selectedCellVar.set(Some(newColRow))
+      }
+    e.keyCode match
+      case 40 => conditionalUpdate(ColRow(0, 1)) // down cursor
+      case 38 => conditionalUpdate(ColRow(0, -1)) // up cursor
+      case 37 => conditionalUpdate(ColRow(-1, 0)) // left cursor
+      case 39 => conditionalUpdate(ColRow(1, 0)) // right cursor
+      case _ => ()

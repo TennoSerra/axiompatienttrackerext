@@ -95,3 +95,98 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* Container for sticky bar and table */
+.table-container {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0; /* Removes any extra space */
+}
+
+/* Sticky bar */
+.sticky-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #272323;
+  color: #ffffff;
+  z-index: 10;
+  padding: 15px 15px; /* Adjust padding to match table alignment */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* Limit the width of the search input field */
+.sticky-bar input[type="text"] {
+  width: 200px; /* Adjust width to fit within the sticky bar */
+  margin-left: 10px; /* Add a small gap between label and input */
+}
+
+/* Table layout */
+.sticky-table {
+  width: 100%;
+  table-layout: auto;
+  border-collapse: separate;
+  margin-top: 50px; /* Offset to make room for the sticky bar */
+  background-color: #272323;
+}
+
+/* Sticky table header */
+.sticky-table thead {
+  position: sticky;
+  top: 50px; /* Adjust based on sticky bar height */
+  z-index: 5;
+  background-color: #272323;
+  color: #ffffff;
+}
+
+/* Style for the sort button in table headers */
+.sticky-header button {
+  background: none;          /* No background, so it blends with the header */
+  border: none;              /* Remove default button border */
+  color: #ffffff;            /* White text for contrast */
+  font-weight: bold;         /* Bold to make it stand out */
+  cursor: pointer;           /* Pointer cursor to indicate interactivity */
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sticky-header button:hover {
+  color: #aaaaaa;            /* Change color on hover for a visual cue */
+}
+
+/* Optional styles for the sort indicators */
+.sort-indicator {
+  font-size: 12px;           /* Small indicator */
+  color: #aaaaaa;            /* Lighter color for the indicator */
+}
+
+.sort-indicator.asc::after {
+  content: "▲";              /* Up arrow for ascending */
+}
+
+.sort-indicator.desc::after {
+  content: "▼";              /* Down arrow for descending */
+}
+
+/* Table cells */
+td, th {
+  padding: 8px 15px; /* Ensure consistent padding for better alignment */
+  white-space: nowrap;
+  min-width: 80px;
+  color: #ffffff;
+}
+
+/* Optional: Specific columns that should wrap */
+td.wrap, th.wrap {
+  white-space: normal;
+}
+
+/* Remove focus outline on table cells */
+td:focus {
+  outline: none;
+}
