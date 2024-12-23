@@ -101,6 +101,7 @@ class CatCodingPanel (private var _panel: vscode.WebviewPanel,private val _exten
 				<h1 id="lines-of-code-counter">0</h1>
       -->
         <div id="app"></div>
+
 				<script nonce="${nonce}" src="${scriptUri}"></script>
 			</html>
 

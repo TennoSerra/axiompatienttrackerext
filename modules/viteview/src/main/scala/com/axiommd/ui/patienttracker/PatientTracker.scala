@@ -3,16 +3,13 @@ package com.axiommd.ui.patienttracker
 import com.axiom.model.shared.dto.Patient
 import scala.collection.mutable
 import com.axiommd.shapeless.{ShapelessFieldNameExtractor, Tuples}
-import java.time.*
 import com.axiommd.ui.tableutils.{CCRowList, ColRow, GridDataT, GridT}
 import com.axiommd.ui.patienttracker.TypeClass.*
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
-import com.axiommd.ModelFetch
 import com.raquo.laminar.api.L
 import com.raquo.airstream.ownership.OneTimeOwner
 import org.scalajs.dom.KeyboardEvent
-import io.bullet.borer.derivation.key
 import scala.scalajs.js
 
 type PatientList = CCRowList[Patient]
@@ -32,6 +29,9 @@ class PatientTracker() extends GridT[Patient, CellData] with RenderHtml:
   val selectedCellVar: Var[Option[ColRow]] = Var(None)
   val selectedRowVar: Var[Option[Int]] = Var(None)
   val searchQueryVar: Var[String] = Var("")
+  
+  // Map to track sorting direction per column (true = ascending, false = descending)
+  val sortState: Var[Map[String, Boolean]] = Var(Map.empty)
 
   selectedCellVar.signal.foreach { setSelectedRow }
   selectedRowVar.signal.foreach { scrollToSelectedRow }
@@ -56,7 +56,6 @@ class PatientTracker() extends GridT[Patient, CellData] with RenderHtml:
         Option(dom.document.getElementById(s"row-$rowIdx")).foreach { element =>
           val rect = element.getBoundingClientRect()
           val isInView = rect.top >= 0 && rect.bottom <= dom.window.innerHeight
-
           if (!isInView) {
             element.asInstanceOf[js.Dynamic].scrollIntoView(
               js.Dynamic.literal(
@@ -73,20 +72,11 @@ class PatientTracker() extends GridT[Patient, CellData] with RenderHtml:
 
   def searchFilterFunction(rowData: scala.collection.mutable.IndexedSeq[(GridT[Patient, CellData], ColRow, CellData)]): Boolean = {
     val query = searchQueryVar.now().toLowerCase
-    // Concatenate all `text` values in `CellData` across the row
     val rowContent = rowData.map(_._3.text).mkString(" ").toLowerCase
     rowContent.contains(query)
   }
 
   def renderHtml: L.Element =
-    def headerRow(headers: List[String]) =
-      List(tr(headers.map { header =>
-        th(
-          cls := "sticky-header",
-          header
-        )
-      }))
-
     div(
       cls := "table-container",
       div(
@@ -104,11 +94,34 @@ class PatientTracker() extends GridT[Patient, CellData] with RenderHtml:
         cls := "sticky-table",
         onKeyDown --> tableKeyboardHandler,
         thead(
-          children <-- colHeadersVar.signal.map(headerRow)
+          children <-- colHeadersVar.signal.map { headers =>
+            List(
+              tr(
+                headers.map { header =>
+                  th(
+                    cls := "sticky-header",
+                    div(
+                      span(header),
+                      button(
+                        cls := "sort-button",
+                        onClick --> { _ => handleSort(header) },
+                        child <-- sortState.signal.map { sortMap =>
+                          val direction = sortMap.getOrElse(header, true)
+                          span(
+                            cls := "sort-indicator",
+                            if (direction) cls := "asc" else cls := "desc" // Ascending or descending indicator
+                          )
+                        }
+                      )
+                    )
+                  )
+                }
+              )
+            )
+          }
         ),
         tbody(
           children <-- gcdVar.signal.combineWith(searchQueryVar.signal).map { case (rowList, query) =>
-            // Apply filtering based on the search query
             rowList.filter { rowData => searchFilterFunction(rowData) }
           }.map { filteredRows =>
             filteredRows.map(rowData => row(rowData))
@@ -152,8 +165,44 @@ class PatientTracker() extends GridT[Patient, CellData] with RenderHtml:
         if inBounds(newColRow) then selectedCellVar.set(Some(newColRow))
       }
     e.keyCode match
-      case 40 => conditionalUpdate(ColRow(0, 1)) // down cursor
-      case 38 => conditionalUpdate(ColRow(0, -1)) // up cursor
-      case 37 => conditionalUpdate(ColRow(-1, 0)) // left cursor
-      case 39 => conditionalUpdate(ColRow(1, 0)) // right cursor
+      case 40 => conditionalUpdate(ColRow(0, 1))  // down
+      case 38 => conditionalUpdate(ColRow(0, -1)) // up
+      case 37 => conditionalUpdate(ColRow(-1, 0)) // left
+      case 39 => conditionalUpdate(ColRow(1, 0))  // right
       case _ => ()
+
+  /**
+   * Handles sorting by the given column name.
+   * Toggles between ascending and descending states.
+   */
+  def handleSort(columnName: String): Unit = {
+    // Update the sort state to toggle sorting direction
+    sortState.update { currentState =>
+      val currentDirection = currentState.getOrElse(columnName, true) // Default to ascending
+      currentState.updated(columnName, !currentDirection) // Toggle direction
+    }
+
+    val direction = sortState.now()(columnName) // true = ascending, false = descending
+    val headers = colHeadersVar.now()
+    val colIndex = headers.indexOf(columnName)
+
+    if (colIndex >= 0) {
+      // Retrieve the current data
+      val currentRows = gcdVar.now()
+
+      // Sort the rows based on the cell text at colIndex
+      val sortedRows = currentRows.sortBy { row =>
+        val cellData = row(colIndex)._3
+        cellData.text.toLowerCase
+      }
+
+      // If descending, reverse the sorted list
+      val finalRows = if (!direction) sortedRows.reverse else sortedRows
+
+      // Update gcdVar with the sorted data
+      gcdVar.set(finalRows)
+    }
+
+    println(s"Sorting by column: $columnName, direction: ${if (direction) "Ascending" else "Descending"}")
+  }
+  
